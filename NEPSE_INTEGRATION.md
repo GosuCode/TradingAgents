@@ -1,30 +1,101 @@
 # TradingAgents NEPSE Integration
 
-## Quick Start
+## Installation
 
 ```bash
-# Analyze any NEPSE stock via CLI (use full path)
+pip install nepse-scraper pandas stockstats
+```
+
+## CLI Usage
+
+```bash
 python -m cli.main --ticker CYCL --vendor nepse
-python -m cli.main --ticker NABIL --vendor nepse
-python -m cli.main --ticker HBL --vendor nepse
 ```
 
-Or add alias to `~/.bashrc`:
+### Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--ticker` | `-t` | NEPSE symbol (CYCL, NABIL, HBL, etc.) |
+| `--date` | `-d` | Analysis date (YYYY-MM-DD) |
+| `--vendor` | | Data source: `nepse`, `yfinance`, `alpha_vantage` |
+| `--checkpoint` | | Save state for crash recovery |
+
+## Features
+
+### 1. Live Analysis (CLI)
+Analyze stocks in real-time with AI agents.
+
 ```bash
-alias ta='python -m cli.main'
-# Then run: ta --ticker CYCL --vendor nepse
+python -m cli.main --ticker CYCL --vendor nepse
 ```
 
-## CLI Options
+### 2. Checkpoint/Resume
+Save progress and resume if interrupted.
 
 ```bash
-python -m cli.main [OPTIONS]
+# Enable checkpointing
+python -m cli.main --ticker CYCL --vendor nepse --checkpoint
 
-Options:
-  --ticker, -t TEXT    Ticker symbol (e.g., CYCL, NABIL, NVDA)
-  --date, -d TEXT      Analysis date (YYYY-MM-DD)
-  --vendor TEXT        Data vendor: yfinance, alpha_vantage, nepse
-  --checkpoint         Enable checkpoint/resume
+# Clear checkpoints
+python -m cli.main --ticker CYCL --vendor nepse --clear-checkpoints
+```
+
+### 3. Historical Results
+All past analyses saved automatically.
+
+```
+~/.tradingagents/logs/<TICKER>/<DATE>/
+├── complete_report.md      # Full analysis
+├── 1_analysts/           # Market, sentiment, news, fundamentals
+├── 2_research/           # Bull/Bear debate
+├── 3_trading/            # Investment plan
+├── 4_risk/               # Risk evaluation
+├── 5_portfolio/           # Final decision
+└── message_tool.log      # Full conversation
+```
+
+View past results:
+```bash
+cat ~/.tradingagents/logs/CYCL/2026-05-09/complete_report.md
+```
+
+## Backtesting
+
+Test TradingAgents decisions on historical data.
+
+```bash
+python examples/backtest.py CYCL 2026-01-01 2026-05-09
+```
+
+### Custom Backtest
+
+```python
+from examples.backtest import run_backtest
+
+run_backtest(
+    ticker="CYCL",
+    start_date="2026-01-01",
+    end_date="2026-05-09",
+    interval_days=30,
+    initial_capital=100000.0
+)
+```
+
+Output:
+```
+BACKTEST SUMMARY
+==================
+Ticker: CYCL
+Period: 2026-01-01 to 2026-05-09
+Initial Capital: NPR 100,000.00
+Final Capital: NPR 110,000.00
+Return: 10.00%
+
+Decision breakdown:
+  BUY: 5
+  SELL: 1
+  HOLD: 4
 ```
 
 ## Python Usage
@@ -41,12 +112,7 @@ config["data_vendors"] = {
 
 ta = TradingAgentsGraph(debug=True, config=config)
 _, decision = ta.propagate("CYCL", "2026-05-09")
-```
-
-## Installation
-
-```bash
-pip install nepse-scraper pandas stockstats
+print(decision)
 ```
 
 ## Popular NEPSE Symbols
@@ -60,28 +126,10 @@ pip install nepse-scraper pandas stockstats
 | MEN | Mountain Energy Nepal |
 | CYCL | Nepal Cyclist Laghubitta |
 | NIFRA | Nepal Infrastructure Bank |
+| MFIL | Mahuli Microfinance |
 
 ## Notes
 
 - News data not available for NEPSE
-- Uses `nepse-scraper` package for data
-- Works same as `yfinance` vendor - just change config to `"nepse"`
-
-## Results
-
-Analysis reports are saved to:
-```
-~/.tradingagents/logs/<TICKER>/<DATE>/
-```
-
-Example:
-```
-~/.tradingagents/logs/CYCL/2026-05-09/
-├── complete_report.md      # Full analysis
-├── 1_analysts/             # Market, sentiment, news, fundamentals
-├── 2_research/             # Investment plan
-├── 3_trading/              # Trader plan
-├── 4_risk/                 # Risk analysis
-├── 5_portfolio/            # Final decision
-└── message_tool.log        # All chat/tool calls
-```
+- Uses `nepse-scraper` for real-time data
+- Same interface as `yfinance` - just change vendor config
