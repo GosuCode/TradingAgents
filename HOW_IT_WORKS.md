@@ -165,8 +165,14 @@ config["data_vendors"] = {
 ## Complete Example
 
 ```bash
-# Run analysis
-python -m cli.main --ticker CYCL --vendor nepse
+# Run analysis (use full path to Python)
+/home/alembershreesh/miniconda3/bin/python -m cli.main --ticker CYCL --vendor nepse
+```
+
+Or add alias to `~/.bashrc`:
+```bash
+alias ta='/home/alembershreesh/miniconda3/bin/python -m cli.main'
+# Then run: ta --ticker CYCL --vendor nepse
 ```
 
 **What happens inside:**

@@ -3,11 +3,16 @@
 ## Quick Start
 
 ```bash
-# Analyze any NEPSE stock via CLI
+# Analyze any NEPSE stock via CLI (use full path)
 python -m cli.main --ticker CYCL --vendor nepse
 python -m cli.main --ticker NABIL --vendor nepse
 python -m cli.main --ticker HBL --vendor nepse
-python -m cli.main --ticker MEN --vendor nepse
+```
+
+Or add alias to `~/.bashrc`:
+```bash
+alias ta='python -m cli.main'
+# Then run: ta --ticker CYCL --vendor nepse
 ```
 
 ## CLI Options
