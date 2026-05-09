@@ -11,6 +11,14 @@ from .alpha_vantage import (
     get_news as get_alpha_vantage_news,
     get_stock as get_alpha_vantage_stock,
 )
+from .alpha_vantage_common import AlphaVantageRateLimitError
+from .nepse import (
+    get_stock_data as get_nepse_stock,
+    get_nepse_index,
+    get_nepse_top_gainers,
+    get_nepse_top_losers,
+    get_nepse_summary,
+)
 from .config import get_config
 from .errors import (
     NoMarketDataError,
@@ -82,6 +90,7 @@ VENDOR_LIST = [
     "fred",
     "polymarket",
     "alpha_vantage",
+    "nepse",
 ]
 
 # Optional enrichment categories. These add macro/event context to the news
@@ -97,6 +106,7 @@ VENDOR_METHODS = {
     "get_stock_data": {
         "alpha_vantage": get_alpha_vantage_stock,
         "yfinance": get_YFin_data_online,
+        "nepse": get_nepse_stock,
     },
     # technical_indicators
     "get_indicators": {
@@ -140,6 +150,19 @@ VENDOR_METHODS = {
     # prediction_markets
     "get_prediction_markets": {
         "polymarket": get_polymarket_prediction_markets,
+    },
+    # NEPSE-specific methods (fallback to not available)
+    "get_nepse_index": {
+        "nepse": get_nepse_index,
+    },
+    "get_nepse_gainers": {
+        "nepse": get_nepse_top_gainers,
+    },
+    "get_nepse_losers": {
+        "nepse": get_nepse_top_losers,
+    },
+    "get_nepse_summary": {
+        "nepse": get_nepse_summary,
     },
 }
 
