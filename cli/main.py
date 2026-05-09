@@ -479,8 +479,14 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
     layout["footer"].update(Panel(stats_table, border_style="grey50"))
 
 
-def get_user_selections():
-    """Get all user selections before starting the analysis display."""
+def get_user_selections(ticker: str = None, date: str = None, data_vendor: str = None):
+    """Get all user selections before starting the analysis display.
+
+    Args:
+        ticker: Optional pre-provided ticker symbol (skip prompt if provided)
+        date: Optional pre-provided analysis date (skip prompt if provided)
+        data_vendor: Optional pre-provided data vendor (skip prompt if provided)
+    """
     # Display ASCII art welcome message
     with open(Path(__file__).parent / "static" / "welcome.txt", encoding="utf-8") as f:
         welcome_ascii = f.read()
@@ -533,14 +539,18 @@ def get_user_selections():
         return prompt_fn()
 
     # Step 1: Ticker symbol
-    console.print(
-        create_question_box(
-            "Step 1: Ticker Symbol",
-            "Enter the ticker, with exchange suffix when needed (e.g. SPY, 0700.HK, BTC-USD)",
-            "SPY",
+    if ticker:
+        selected_ticker = ticker
+        console.print(f"[green]Using provided ticker: {selected_ticker}[/green]")
+    else:
+        console.print(
+            create_question_box(
+                "Step 1: Ticker Symbol",
+                "Enter the exact ticker symbol to analyze, including exchange suffix when needed (examples: SPY, CNC.TO, 7203.T, 0700.HK, CYCL for NEPSE)",
+                "SPY",
+            )
         )
-    )
-    selected_ticker = get_ticker()
+        selected_ticker = get_ticker()
     asset_type = detect_asset_type(selected_ticker)
     # Only announce when it's not the default stock path, to avoid printing
     # "stock" on every run.
@@ -550,15 +560,19 @@ def get_user_selections():
         )
 
     # Step 2: Analysis date
-    default_date = datetime.datetime.now().strftime("%Y-%m-%d")
-    console.print(
-        create_question_box(
-            "Step 2: Analysis Date",
-            "Enter the analysis date (YYYY-MM-DD)",
-            default_date,
+    if date:
+        analysis_date = date
+        console.print(f"[green]Using provided date: {analysis_date}[/green]")
+    else:
+        default_date = datetime.datetime.now().strftime("%Y-%m-%d")
+        console.print(
+            create_question_box(
+                "Step 2: Analysis Date",
+                "Enter the analysis date (YYYY-MM-DD)",
+                default_date,
+            )
         )
-    )
-    analysis_date = get_analysis_date()
+        analysis_date = get_analysis_date()
 
     # Step 3: Output language (skipped when set via TRADINGAGENTS_OUTPUT_LANGUAGE)
     if os.environ.get("TRADINGAGENTS_OUTPUT_LANGUAGE"):
@@ -725,6 +739,7 @@ def get_user_selections():
         "openai_reasoning_effort": reasoning_effort,
         "anthropic_effort": anthropic_effort,
         "output_language": output_language,
+        "data_vendor": data_vendor,
     }
 
 
@@ -988,11 +1003,20 @@ def _build_run_config(selections: dict, checkpoint: bool | None) -> dict:
     return config
 
 
-def run_analysis(checkpoint: bool | None = None):
+def run_analysis(checkpoint: bool | None = None, ticker: str = None, date: str = None, data_vendor: str = None):
     # First get all user selections
-    selections = get_user_selections()
+    selections = get_user_selections(ticker=ticker, date=date, data_vendor=data_vendor)
 
     config = _build_run_config(selections, checkpoint)
+
+    # Set data vendor if provided (for NEPSE, etc.)
+    if selections.get("data_vendor"):
+        config["data_vendors"] = {
+            "core_stock_apis": selections["data_vendor"],
+            "technical_indicators": selections["data_vendor"],
+            "fundamental_data": selections["data_vendor"],
+            "news_data": selections["data_vendor"],
+        }
 
     # Create stats callback handler for tracking LLM/tool calls
     stats_handler = StatsCallbackHandler()
@@ -1267,8 +1291,10 @@ def run_analysis(checkpoint: bool | None = None):
         display_complete_report(final_state)
 
 
-@app.command()
+@app.command("analyze")
 def analyze(
+    ticker: Optional[str] = typer.Option(None, "--ticker", "-t", help="Ticker symbol to analyze (e.g., CYCL, NABIL, NVDA)"),
+    date: Optional[str] = typer.Option(None, "--date", "-d", help="Analysis date in YYYY-MM-DD format"),
     checkpoint: bool | None = typer.Option(
         None,
         "--checkpoint/--no-checkpoint",
@@ -1280,13 +1306,25 @@ def analyze(
         "--clear-checkpoints",
         help="Delete all saved checkpoints before running (force fresh start).",
     ),
+    vendor: Optional[str] = typer.Option(
+        None,
+        "--vendor",
+        help="Data vendor: yfinance, alpha_vantage, or nepse (for Nepal Stock Exchange)",
+    ),
 ):
     if clear_checkpoints:
         from tradingagents.graph.checkpointer import clear_all_checkpoints
         n = clear_all_checkpoints(DEFAULT_CONFIG["data_cache_dir"])
         console.print(f"[yellow]Cleared {n} checkpoint(s).[/yellow]")
-    run_analysis(checkpoint=checkpoint)
+
+    run_analysis(
+        checkpoint=checkpoint,
+        ticker=ticker,
+        date=date,
+        data_vendor=vendor,
+    )
 
 
 if __name__ == "__main__":
-    app()
+    import sys
+    app(sys.argv[1:] if len(sys.argv) > 1 else ["--help"])

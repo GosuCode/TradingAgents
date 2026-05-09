@@ -14,6 +14,7 @@ from .alpha_vantage import (
 from .alpha_vantage_common import AlphaVantageRateLimitError
 from .nepse import (
     get_stock_data as get_nepse_stock,
+    get_stock_stats_indicators_window as get_nepse_indicators,
     get_nepse_index,
     get_nepse_top_gainers,
     get_nepse_top_losers,
@@ -114,6 +115,7 @@ VENDOR_METHODS = {
     "get_indicators": {
         "alpha_vantage": get_alpha_vantage_indicator,
         "yfinance": get_stock_stats_indicators_window,
+        "nepse": get_nepse_indicators,
     },
     # fundamental_data
     "get_fundamentals": {

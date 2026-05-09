@@ -1,14 +1,15 @@
 """
-NEPSE Stock Analysis using TradingAgents Framework
-Analyzes CYCL (Nepal Cyclist Laghubitta Bittiya Sanstha)
+NEPSE Analysis - Same pattern as main.py
+
+To analyze any NEPSE stock, just change:
+1. data_vendors from "yfinance" to "nepse"
+2. The ticker symbol to a NEPSE symbol (e.g., NABIL, HBL, CYCL, MEN)
 """
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
-from tradingagents.dataflows.config import set_config
 
 from dotenv import load_dotenv
-import os
 
 load_dotenv()
 
@@ -18,8 +19,8 @@ config["deep_think_llm"] = "anthropic/claude-3.5-haiku"
 config["quick_think_llm"] = "anthropic/claude-3.5-haiku"
 config["max_debate_rounds"] = 1
 config["backend_url"] = "https://openrouter.ai/api/v1"
-config["max_tokens"] = 2048
 
+# Use NEPSE instead of yfinance - everything else stays the same!
 config["data_vendors"] = {
     "core_stock_apis": "nepse",
     "technical_indicators": "nepse",
@@ -27,23 +28,9 @@ config["data_vendors"] = {
     "news_data": "nepse",
 }
 
-config["output_language"] = "English"
-
-print("="*60)
-print("NEPSE STOCK ANALYSIS - CYCL (TradingAgents Framework)")
-print("="*60)
-print(f"LLM Provider: OpenRouter")
-print(f"Model: {config['deep_think_llm']}")
-print(f"Data Source: NEPSE (nepalstock.com)")
-print()
-
 ta = TradingAgentsGraph(debug=True, config=config)
 
-print("Running multi-agent analysis...")
-print("-"*40)
+# Analyze any NEPSE symbol - just change the ticker!
+# Options: NABIL, HBL, EBL, NMB, MEN, CYCL, NIFRA, etc.
 _, decision = ta.propagate("CYCL", "2026-05-09")
-
-print("\n" + "="*60)
-print("TRADING DECISION FOR CYCL")
-print("="*60)
 print(decision)
