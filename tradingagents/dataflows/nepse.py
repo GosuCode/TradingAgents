@@ -203,3 +203,19 @@ def get_nepse_price_history(
     end_date = datetime.now().strftime('%Y-%m-%d')
     start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
     return get_stock_data(symbol, start_date, end_date)
+
+def get_news(
+    ticker: Annotated[str, "NEPSE stock symbol"],
+    start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
+    end_date: Annotated[str, "End date in yyyy-mm-dd format"],
+) -> str:
+    """Get news for a NEPSE stock. Note: News data not available for NEPSE."""
+    return "News data is not available for NEPSE-listed stocks. NEPSE does not provide a public news API. Please rely on technical and fundamental analysis of price data."
+
+def get_global_news(
+    curr_date: Annotated[str, "Current date"] = None,
+    look_back_days: Annotated[int, "Number of days"] = 7,
+    limit: Annotated[int, "Max articles"] = 5,
+) -> str:
+    """Get global/market news. Note: Not available for NEPSE."""
+    return "Global news data is not available through NEPSE. News aggregation requires external sources not integrated with this NEPSE adapter."

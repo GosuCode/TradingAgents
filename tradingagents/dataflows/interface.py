@@ -18,6 +18,8 @@ from .nepse import (
     get_nepse_top_gainers,
     get_nepse_top_losers,
     get_nepse_summary,
+    get_news as get_nepse_news,
+    get_global_news as get_nepse_global_news,
 )
 from .config import get_config
 from .errors import (
@@ -134,10 +136,12 @@ VENDOR_METHODS = {
     "get_news": {
         "alpha_vantage": get_alpha_vantage_news,
         "yfinance": get_news_yfinance,
+        "nepse": get_nepse_news,
     },
     "get_global_news": {
         "yfinance": get_global_news_yfinance,
         "alpha_vantage": get_alpha_vantage_global_news,
+        "nepse": get_nepse_global_news,
     },
     "get_insider_transactions": {
         "alpha_vantage": get_alpha_vantage_insider_transactions,

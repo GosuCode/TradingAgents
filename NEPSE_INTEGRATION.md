@@ -14,6 +14,8 @@
 
 ## Table of Contents
 
+- [Quick Start](#quick-start)
+- [How to Analyze Any NEPSE Symbol](#how-to-analyze-any-nepse-symbol)
 - [Overview](#overview)
 - [What is NEPSE?](#what-is-nepse)
 - [Installation](#installation)
@@ -22,10 +24,96 @@
 - [Usage](#usage)
 - [Available Functions](#available-functions)
 - [NEPSE Stock Symbols](#nepse-stock-symbols)
-- [Example: Running TradingAgents with NEPSE](#example-running-tradingagents-with-nepse)
+- [Example Scripts](#example-scripts)
 - [Troubleshooting](#troubleshooting)
 - [Technical Details](#technical-details)
 - [Contributing](#contributing)
+
+---
+
+## Quick Start
+
+### Analyze any NEPSE symbol in 3 steps:
+
+```bash
+# 1. Navigate to project directory
+cd /path/to/TradingAgents
+
+# 2. Run the lightweight analysis script with your desired symbol
+python examples/nepse_analysis_light.py MEN
+
+# 3. That's it! See detailed technical analysis instantly
+```
+
+---
+
+## How to Analyze Any NEPSE Symbol
+
+### Method 1: Lightweight Analysis (Fast, No API credits needed)
+
+```bash
+# Analyze any symbol by passing it as argument
+python examples/nepse_analysis_light.py NABIL    # Nabil Bank
+python examples/nepse_analysis_light.py HBL       # Himalayan Bank
+python examples/nepse_analysis_light.py MEN      # Mountain Energy Nepal
+python examples/nepse_analysis_light.py CYCL     # Nepal Cyclist Laghubitta
+python examples/nepse_analysis_light.py NIFRA    # Nepal Infrastructure Bank
+
+# View help
+python examples/nepse_analysis_light.py --help
+```
+
+### Method 2: Full TradingAgents Analysis (AI-powered multi-agent)
+
+```bash
+# 1. Edit examples/nepse_analysis_cycl.py and change the symbol
+# Line 44: _, decision = ta.propagate("CYCL", "2026-05-09")
+# Change "CYCL" to your desired symbol
+
+# 2. Run
+python examples/nepse_analysis_cycl.py
+```
+
+### Method 3: Interactive Mode
+
+```bash
+# Launch the TradingAgents CLI
+tradingagents
+
+# Note: Configure NEPSE as data source when prompted
+```
+
+### Method 4: Custom Python Script
+
+```python
+from tradingagents.dataflows.config import set_config
+from tradingagents.dataflows.interface import route_to_vendor
+
+# Configure for NEPSE
+set_config({
+    "data_vendors": {
+        "core_stock_apis": "nepse",
+    }
+})
+
+# Analyze any symbol
+symbol = "NABIL"  # Change this to any NEPSE symbol
+end_date = "2026-05-09"
+start_date = "2026-03-10"
+
+data = route_to_vendor("get_stock_data", symbol, start_date, end_date)
+print(data)
+```
+
+### Method 5: Get List of Available Symbols
+
+```python
+from tradingagents.dataflows.nepse import get_nepse_top_gainers
+
+# Get current trading symbols (top gainers shows active symbols)
+gainers = get_nepse_top_gainers()
+print(gainers)
+```
 
 ---
 
@@ -62,7 +150,7 @@ NEPSE (Nepal Stock Exchange) is the only stock exchange in Nepal, operating unde
 1. Python 3.10 or higher
 2. pip or conda
 3. Git
-4. API keys for LLM providers (OpenAI, Anthropic, Google, etc.)
+4. API keys for LLM providers (OpenAI, Anthropic, Google, etc.) - optional for lightweight analysis
 
 ### Step 1: Clone TradingAgents
 
@@ -111,6 +199,8 @@ The NEPSE adapter is pre-installed at `tradingagents/dataflows/nepse.py`. It use
 |------|-------------|
 | `tradingagents/dataflows/nepse.py` | NEPSE data source adapter |
 | `tradingagents/dataflows/interface.py` | Updated to route to NEPSE vendor |
+| `examples/nepse_analysis_light.py` | Lightweight analysis script |
+| `examples/nepse_analysis_cycl.py` | Full TradingAgents example |
 
 ### Understanding the Adapter
 
@@ -237,6 +327,8 @@ tradingagents analyze --ticker NABIL --date 2026-05-09 --checkpoint
 | `get_nepse_top_gainers` | Top gaining stocks | `date` (optional) |
 | `get_nepse_top_losers` | Top losing stocks | `date` (optional) |
 | `get_nepse_index` | NEPSE Sensitive Index | `date` (optional) |
+| `get_news` | News for stock (NEPSE: not available) | `ticker`, `start_date`, `end_date` |
+| `get_global_news` | Global news (NEPSE: not available) | `curr_date`, `look_back_days`, `limit` |
 
 ### Example Output
 
@@ -279,6 +371,15 @@ date,open,high,low,close,volume,symbol
 | AKPL | Arun Kabeli Power Limited |
 | HPPL | Himshikhar Power Limited |
 
+### Microfinance (Laghubitta)
+
+| Symbol | Company Name |
+|--------|--------------|
+| CYCL | Nepal Cyclist Laghubitta Bittiya Sanstha |
+| MSBB | Muktinath Bikas Bank |
+| SLBS | Sufi Mikro Laghubitta Bittiya Sanstha |
+| NMFBS | National Microfinance Bittiya Sanstha |
+
 ### Insurance Companies
 
 | Symbol | Company Name |
@@ -299,81 +400,79 @@ date,open,high,low,close,volume,symbol
 
 ---
 
-## Example: Running TradingAgents with NEPSE
+## Example Scripts
 
-### Complete Example Script
+### Example 1: Lightweight Analysis (Recommended for quick checks)
 
 ```python
-"""
-NEPSE TradingAgents Example
-Analyzes MEN stock on NEPSE using TradingAgents framework
-"""
+# examples/nepse_analysis_light.py
+from tradingagents.dataflows.config import set_config
+from tradingagents.dataflows.interface import route_to_vendor
 
-from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.dataflows.interface import set_config, route_to_vendor
-from tradingagents.default_config import DEFAULT_CONFIG
-from datetime import datetime, timedelta
+set_config({
+    "data_vendors": {
+        "core_stock_apis": "nepse",
+    }
+})
 
-def setup_nepse():
-    """Configure TradingAgents to use NEPSE data source."""
-    set_config({
-        "data_vendors": {
-            "core_stock_apis": "nepse",
-            "technical_indicators": "nepse",
-        },
-        "llm_provider": "openai",
-        "deep_think_llm": "gpt-5.4",
-        "quick_think_llm": "gpt-5.4-mini",
-    })
-
-def analyze_nepse_stock(ticker: str, analysis_date: str = None):
-    """Analyze a NEPSE stock using TradingAgents."""
-    
-    if analysis_date is None:
-        analysis_date = datetime.now().strftime("%Y-%m-%d")
-    
-    # Get stock data
-    print(f"\n{'='*50}")
-    print(f"Analyzing {ticker} on NEPSE")
-    print(f"Date: {analysis_date}")
-    print(f"{'='*50}\n")
-    
-    # Get historical data
-    end_date = analysis_date
-    start_date = (datetime.strptime(end_date, "%Y-%m-%d") - timedelta(days=60)).strftime("%Y-%m-%d")
-    
-    data = route_to_vendor("get_stock_data", ticker, start_date, end_date)
-    print("Recent Data:")
-    print(data[:500] if len(data) > 500 else data)
-    
-    # Get market summary
-    print("\nMarket Summary:")
-    summary = route_to_vendor("get_nepse_summary")
-    print(summary)
-    
-    # Get top gainers
-    print("\nTop Gainers Today:")
-    gainers = route_to_vendor("get_nepse_gainers")
-    print(gainers[:500] if len(gainers) > 500 else gainers)
-
-def main():
-    # Setup NEPSE configuration
-    setup_nepse()
-    
-    # Analyze MEN (Mountain Energy Nepal)
-    analyze_nepse_stock("MEN")
-    
-    # Analyze NABIL (Nabil Bank)
-    analyze_nepse_stock("NABIL")
-
-if __name__ == "__main__":
-    main()
+# Get data
+data = route_to_vendor("get_stock_data", "NABIL", "2026-03-10", "2026-05-09")
+print(data)
 ```
 
-### Run the Example
-
+Run:
 ```bash
-python examples/nepse_example.py
+python examples/nepse_analysis_light.py NABIL
+```
+
+### Example 2: Full TradingAgents with OpenRouter
+
+```python
+# examples/nepse_analysis_cycl.py
+from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.dataflows.config import set_config
+
+config = DEFAULT_CONFIG.copy()
+config["llm_provider"] = "openrouter"
+config["deep_think_llm"] = "anthropic/claude-3.5-haiku"
+config["quick_think_llm"] = "anthropic/claude-3.5-haiku"
+config["backend_url"] = "https://openrouter.ai/api/v1"
+config["data_vendors"] = {
+    "core_stock_apis": "nepse",
+}
+
+ta = TradingAgentsGraph(debug=True, config=config)
+_, decision = ta.propagate("CYCL", "2026-05-09")
+print(decision)
+```
+
+Run:
+```bash
+python examples/nepse_analysis_cycl.py
+```
+
+### Example 3: Custom Analysis Script
+
+```python
+# my_nepse_analysis.py
+import sys
+from tradingagents.dataflows.config import set_config
+from tradingagents.dataflows.interface import route_to_vendor
+import pandas as pd
+
+set_config({"data_vendors": {"core_stock_apis": "nepse"}})
+
+symbol = sys.argv[1] if len(sys.argv) > 1 else "NABIL"
+data = route_to_vendor("get_stock_data", symbol, "2026-03-10", "2026-05-09")
+print(data)
+```
+
+Run:
+```bash
+python my_nepse_analysis.py NABIL
+python my_nepse_analysis.py HBL
+python my_nepse_analysis.py MEN
 ```
 
 ---
@@ -432,6 +531,12 @@ If you get connection errors, check your internet connection and try again later
 - Non-trading hours
 - System maintenance
 - High traffic periods
+
+#### 6. API Credits Exhausted (for full TradingAgents)
+
+If you see "This request requires more credits" error:
+- Upgrade your OpenRouter credits at https://openrouter.ai/settings/credits
+- Or use the lightweight analysis script which doesn't require LLM API
 
 ---
 
