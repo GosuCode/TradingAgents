@@ -9,7 +9,7 @@ pip install nepse-scraper pandas stockstats
 ## CLI Usage
 
 ```bash
-python -m cli.main --ticker CYCL --vendor nepse
+python3 -m cli.main --ticker CYCL --vendor nepse
 ```
 
 ### Options
@@ -27,7 +27,7 @@ python -m cli.main --ticker CYCL --vendor nepse
 Analyze stocks in real-time with AI agents.
 
 ```bash
-python -m cli.main --ticker CYCL --vendor nepse
+python3 -m cli.main --ticker CYCL --vendor nepse
 ```
 
 ### 2. Checkpoint/Resume
@@ -35,10 +35,10 @@ Save progress and resume if interrupted.
 
 ```bash
 # Enable checkpointing
-python -m cli.main --ticker CYCL --vendor nepse --checkpoint
-
+python3 -m cli.main --ticker CYCL --vendor nepse --checkpoint
+ 
 # Clear checkpoints
-python -m cli.main --ticker CYCL --vendor nepse --clear-checkpoints
+python3 -m cli.main --ticker CYCL --vendor nepse --clear-checkpoints
 ```
 
 ### 3. Historical Results
@@ -65,7 +65,7 @@ cat ~/.tradingagents/logs/CYCL/2026-05-09/complete_report.md
 Test TradingAgents decisions on historical data.
 
 ```bash
-python examples/backtest.py CYCL 2026-01-01 2026-05-09
+python3 examples/backtest.py CYCL 2026-01-01 2026-05-09
 ```
 
 ### Custom Backtest

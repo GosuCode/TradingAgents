@@ -172,7 +172,7 @@ cp .env.example .env
 Launch the interactive CLI:
 ```bash
 tradingagents          # installed command
-python -m cli.main     # alternative: run directly from source
+python3 -m cli.main     # alternative: run directly from source
 ```
 You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more.
 

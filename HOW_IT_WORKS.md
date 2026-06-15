@@ -46,7 +46,7 @@ User Input (CLI/API)
 ### Step 1: You Provide Input
 
 ```bash
-python -m cli.main --ticker CYCL --vendor nepse
+python3 -m cli.main --ticker CYCL --vendor nepse
 ```
 
 This tells the system:
