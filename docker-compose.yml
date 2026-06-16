@@ -20,6 +20,8 @@ services:
       - REDIS_URL=redis://redis:6379/0
     ports:
       - "8000:8000"
+    volumes:
+      - ~/.tradingagents/logs:/root/.tradingagents/logs
 
   worker:
     build:
@@ -33,6 +35,8 @@ services:
     environment:
       - REDIS_URL=redis://redis:6379/0
     command: celery -A backend.app.celery_app worker --loglevel=info --concurrency=1
+    volumes:
+      - ~/.tradingagents/logs:/root/.tradingagents/logs
 
   frontend:
     build:

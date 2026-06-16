@@ -66,6 +66,27 @@ export interface AnalysisStatus {
   error: string | null
 }
 
+export interface ReportSection {
+  name: string
+  file: string
+}
+
+export interface ReportEntry {
+  ticker: string
+  date: string
+  sections: ReportSection[]
+}
+
+export interface ReportSectionContent extends ReportSection {
+  content: string
+}
+
+export interface ReportDetail {
+  ticker: string
+  date: string
+  sections: ReportSectionContent[]
+}
+
 export const api = {
   index: () => request<ApiResponse<IndexData>>("/nepse/index"),
   gainers: (limit = 5) => request<ApiResponse<TopStockItem[]>>(`/nepse/gainers?limit=${limit}`),
@@ -78,4 +99,6 @@ export const api = {
     request<AnalysisStatus>("/analysis", { method: "POST", body: JSON.stringify(body) }),
   analysisStatus: (taskId: string) => request<AnalysisStatus>(`/analysis/${taskId}/status`),
   analysisReport: (taskId: string) => request<Record<string, any>>(`/analysis/${taskId}/report`),
+  reportsList: () => request<ReportEntry[]>("/reports"),
+  reportDetail: (ticker: string, date: string) => request<ReportDetail>(`/reports/${ticker}/${date}`),
 }

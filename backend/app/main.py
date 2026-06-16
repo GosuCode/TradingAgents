@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.config import settings
-from backend.app.routers import nepse, settings as settings_router, analysis
+from backend.app.routers import nepse, settings as settings_router, analysis, reports
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
@@ -30,6 +30,7 @@ app.add_middleware(
 app.include_router(nepse.router)
 app.include_router(settings_router.router)
 app.include_router(analysis.router)
+app.include_router(reports.router)
 
 
 @app.get("/api/health")
