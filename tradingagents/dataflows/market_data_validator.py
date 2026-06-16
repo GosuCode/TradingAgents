@@ -15,6 +15,8 @@ from collections.abc import Iterable
 import pandas as pd
 from stockstats import wrap
 
+from tradingagents.dataflows.config import get_config
+from tradingagents.dataflows.errors import NoMarketDataError
 from tradingagents.dataflows.stockstats_utils import load_ohlcv
 
 # A fixed, common indicator set so the snapshot is the same shape every run.
@@ -28,11 +30,21 @@ DEFAULT_SNAPSHOT_INDICATORS: tuple[str, ...] = (
 def _verified_rows(symbol: str, curr_date: str) -> pd.DataFrame:
     """OHLCV on or before curr_date, date-sorted. Raises if nothing usable.
 
-    ``load_ohlcv`` already normalizes the Date column and filters out
-    look-ahead rows, but we re-apply the cutoff defensively — this is a
-    verification path, so it must not trust its input to be pre-filtered.
+    Uses the vendor configured in ``core_stock_apis``: when ``"nepse"`` the
+    NEPSE API is queried directly; otherwise falls through to yfinance (the
+    original behaviour). ``load_ohlcv`` / ``load_nepse_ohlcv`` already
+    normalises the Date column and filters out look-ahead rows, but we
+    re-apply the cutoff defensively — this is a verification path, so it must
+    not trust its input to be pre-filtered.
     """
-    data = load_ohlcv(symbol, curr_date)
+    vendor = get_config().get("data_vendors", {}).get("core_stock_apis", "")
+
+    if vendor == "nepse":
+        from tradingagents.dataflows.nepse import load_nepse_ohlcv
+        data = load_nepse_ohlcv(symbol, curr_date)
+    else:
+        data = load_ohlcv(symbol, curr_date)
+
     if data is None or data.empty:
         raise ValueError(f"No OHLCV data available for {symbol}.")
 

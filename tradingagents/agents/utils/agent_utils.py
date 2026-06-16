@@ -85,23 +85,69 @@ def resolve_instrument_identity(ticker: str) -> dict:
     the price action to a narrative and invent an identity that then cascaded
     through every downstream agent.
 
-    Best-effort by design: if yfinance is unavailable, rate-limited, or doesn't
-    recognise the ticker, we return ``{}`` and the caller falls back to
+    Best-effort by design: if the vendor API is unavailable, rate-limited, or
+    doesn't recognise the ticker, we return ``{}`` and the caller falls back to
     ticker-only context rather than failing before analysis starts. Cached so
     the lookup happens at most once per ticker per process.
 
-    The symbol is normalized first (e.g. ``XAUUSD`` -> ``GC=F``) so identity
-    resolves for the same instrument the price path actually fetches (#983).
+    When the configured ``core_stock_apis`` vendor is ``"nepse"`` we query the
+    NEPSE API directly via ``nepse_scraper``; otherwise we fall through to the
+    yfinance path (the original behaviour).  The symbol is normalised first
+    (e.g. ``XAUUSD`` -> ``GC=F``) so identity resolves for the same instrument
+    the price path actually fetches (#983).
     """
+    from tradingagents.dataflows.config import get_config
     from tradingagents.dataflows.symbol_utils import normalize_symbol
 
+    vendor = get_config().get("data_vendors", {}).get("core_stock_apis", "")
+
+    # NEPSE vendor — query the NEPSE API for the real company identity.
+    if vendor == "nepse":
+        try:
+            from nepse_scraper import NepseScraper
+
+            scraper = NepseScraper(verify_ssl=False)
+            info = scraper.get_ticker_info(ticker.upper().strip())
+        except Exception:  # noqa: BLE001 — fail open, never block the run
+            return {}
+
+        identity: dict[str, str] = {}
+        security = info.get("security") or {}
+        company = (security.get("companyId") or {}) if isinstance(
+            security.get("companyId"), dict
+        ) else {}
+
+        company_name = _clean_identity_value(security.get("securityName"))
+        if company_name:
+            identity["company_name"] = company_name
+
+        sector_master = (company.get("sectorMaster") or {}) if isinstance(
+            company.get("sectorMaster"), dict
+        ) else {}
+        sector = _clean_identity_value(sector_master.get("sectorDescription"))
+        if sector:
+            identity["sector"] = sector
+
+        instrument_type = (security.get("instrumentType") or {}) if isinstance(
+            security.get("instrumentType"), dict
+        ) else {}
+        quote_type = _clean_identity_value(instrument_type.get("description"))
+        if quote_type:
+            identity["quote_type"] = quote_type
+
+        exchange = _clean_identity_value(info.get("exchange"))
+        if exchange:
+            identity["exchange"] = exchange
+        return identity
+
+    # Default / other vendors — original yfinance path.
     try:
         info = yf.Ticker(normalize_symbol(ticker)).info or {}
     except Exception as exc:  # noqa: BLE001 — fail open, never block the run
         logger.debug("Could not resolve instrument identity for %s: %s", ticker, exc)
         return {}
 
-    identity: dict[str, str] = {}
+    identity = {}
     company_name = _clean_identity_value(info.get("longName")) or _clean_identity_value(
         info.get("shortName")
     )

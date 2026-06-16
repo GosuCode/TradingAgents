@@ -1,6 +1,10 @@
+import os
 from typing import Annotated
 from datetime import datetime, timedelta
+
 import pandas as pd
+
+from .errors import NoMarketDataError
 
 try:
     import pandas as pd
@@ -249,6 +253,88 @@ def _load_nepse_ohlcv(symbol: str, end_date: str) -> pd.DataFrame:
     df = df.sort_values('Date')
 
     return df
+
+
+def load_nepse_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
+    """Fetch NEPSE OHLCV data with caching, filtered to prevent look-ahead bias.
+
+    Mirrors ``stockstats_utils.load_ohlcv()`` but uses the NEPSE API instead of
+    yfinance. Returns a DataFrame with columns ``Date``, ``Open``, ``High``,
+    ``Low``, ``Close``, ``Volume`` (uppercase, matching the yfinance convention)
+    or raises ``NoMarketDataError`` when no data is available.
+    """
+    if not NEPSE_SCRAPER_AVAILABLE:
+        raise NoMarketDataError(
+            symbol, symbol,
+            "nepse_scraper not installed. Run: pip install nepse-scraper",
+        )
+    if not PANDAS_AVAILABLE:
+        raise NoMarketDataError(symbol, symbol, "pandas not installed")
+
+    from tradingagents.dataflows.config import get_config
+    from tradingagents.dataflows.utils import safe_ticker_component
+
+    config = get_config()
+    curr_date_dt = pd.to_datetime(curr_date)
+    today_date = pd.Timestamp.today()
+    start_date = today_date - pd.DateOffset(years=5)
+    start_str = start_date.strftime("%Y-%m-%d")
+    end_str = (today_date + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+    safe_sym = safe_ticker_component(symbol.upper())
+
+    os.makedirs(config["data_cache_dir"], exist_ok=True)
+    cache_file = os.path.join(
+        config["data_cache_dir"],
+        f"{safe_sym}-NEPSE-data-{start_str}-{end_str}.csv",
+    )
+
+    data = None
+    if os.path.exists(cache_file):
+        cached = pd.read_csv(cache_file, on_bad_lines="skip", encoding="utf-8")
+        if not cached.empty and "Close" in cached.columns:
+            data = cached
+
+    if data is None:
+        scraper = NepseScraper(verify_ssl=False)
+        raw = scraper.get_ticker_price_history(
+            ticker=symbol.upper().strip(),
+            start_date=start_str,
+            end_date=end_str,
+        )
+        df = _parse_price_history(raw)
+        if df.empty or "close" not in df.columns:
+            raise NoMarketDataError(
+                symbol, symbol, f"NEPSE returned no rows for {symbol}",
+            )
+        # Rename lowercase columns to uppercase to match the yfinance convention.
+        df = df.rename(columns={
+            "date": "Date",
+            "open": "Open",
+            "high": "High",
+            "low": "Low",
+            "close": "Close",
+            "volume": "Volume",
+        })
+        df = df.drop(columns=[c for c in ["symbol"] if c in df.columns], errors="ignore")
+        df.to_csv(cache_file, index=False, encoding="utf-8")
+        data = df
+
+    # Clean & normalise (mirrors _clean_dataframe from stockstats_utils).
+    data["Date"] = pd.to_datetime(data["Date"], errors="coerce")
+    data = data.dropna(subset=["Date"])
+    price_cols = [c for c in ["Open", "High", "Low", "Close", "Volume"] if c in data.columns]
+    data[price_cols] = data[price_cols].apply(pd.to_numeric, errors="coerce")
+    data = data.dropna(subset=["Close"])
+    data[price_cols] = data[price_cols].ffill().bfill()
+
+    # Filter to curr_date to prevent look-ahead bias.
+    data = data[data["Date"] <= curr_date_dt]
+
+    if data.empty:
+        raise NoMarketDataError(
+            symbol, symbol, f"No NEPSE rows on or before {curr_date} for {symbol}",
+        )
+    return data
 
 
 def _parse_price_history(data) -> pd.DataFrame:
