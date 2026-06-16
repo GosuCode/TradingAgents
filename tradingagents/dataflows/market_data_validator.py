@@ -16,7 +16,6 @@ import pandas as pd
 from stockstats import wrap
 
 from tradingagents.dataflows.config import get_config
-from tradingagents.dataflows.errors import NoMarketDataError
 from tradingagents.dataflows.stockstats_utils import load_ohlcv
 
 # A fixed, common indicator set so the snapshot is the same shape every run.
@@ -64,7 +63,7 @@ def _fmt(value) -> str:
         return value.strftime("%Y-%m-%d")
     if isinstance(value, bool):
         return str(value)
-    if isinstance(value, (int,)):
+    if isinstance(value, int):
         return str(value)
     if isinstance(value, float):
         return f"{value:.2f}"

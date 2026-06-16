@@ -4,7 +4,6 @@ import time
 from collections import deque
 from functools import wraps
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich import box
@@ -1307,7 +1306,7 @@ def analyze(
         "--clear-checkpoints",
         help="Delete all saved checkpoints before running (force fresh start).",
     ),
-    vendor: Optional[str] = typer.Option(
+    vendor: str | None = typer.Option(
         None,
         "--vendor",
         help="Data vendor: yfinance, alpha_vantage, or nepse (for Nepal Stock Exchange)",

@@ -1,4 +1,5 @@
 import os
+
 from fastapi import APIRouter
 
 from backend.app.schemas.settings import SettingsResponse, SettingsUpdate

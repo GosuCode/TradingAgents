@@ -1,12 +1,16 @@
 import logging
-import urllib3
 import warnings
+
+import urllib3
 from fastapi import APIRouter, Query
 
 from backend.app.schemas.nepse import (
-    IndexResponse, IndexEntry,
-    TopStocksResponse, TopStockItem,
-    SummaryResponse, SummaryItem,
+    IndexEntry,
+    IndexResponse,
+    SummaryItem,
+    SummaryResponse,
+    TopStockItem,
+    TopStocksResponse,
 )
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)

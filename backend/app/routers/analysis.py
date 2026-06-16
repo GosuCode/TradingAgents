@@ -1,13 +1,12 @@
 import json
-import uuid
 from datetime import datetime
 
 import redis as sync_redis
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 
-from backend.app.celery_app import get_task_status, celery_app
+from backend.app.celery_app import get_task_status
 from backend.app.config import settings
-from backend.app.schemas.analysis import AnalysisRequest, AnalysisStatus, AnalysisReport
+from backend.app.schemas.analysis import AnalysisReport, AnalysisRequest, AnalysisStatus
 from backend.app.tasks.analysis_runner import run_analysis
 
 router = APIRouter(prefix="/api/analysis", tags=["Analysis"])

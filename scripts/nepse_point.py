@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Display the current NEPSE index (benchmark point) from nepalstock.com."""
 
-import urllib3
 import warnings
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+
+import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 warnings.filterwarnings("ignore", category=urllib3.exceptions.InsecureRequestWarning)

@@ -1,6 +1,4 @@
 import json
-import os
-import time
 from datetime import datetime
 
 import redis as sync_redis
@@ -51,7 +49,7 @@ def run_analysis(self, ticker: str, date: str | None, vendor: str, llm_provider:
         if quick_think_llm:
             config["quick_think_llm"] = quick_think_llm
 
-        _publish(task_id, {"type": "log", "data": f"Config loaded. Building graph..."})
+        _publish(task_id, {"type": "log", "data": "Config loaded. Building graph..."})
         _update_meta(task_id, progress=15, message="Building agent graph...")
 
         graph = TradingAgentsGraph(config=config, debug=True)

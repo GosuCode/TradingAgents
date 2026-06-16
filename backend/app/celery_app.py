@@ -1,4 +1,3 @@
-import os
 from celery import Celery
 
 from backend.app.config import settings
@@ -21,7 +20,7 @@ celery_app.conf.update(
 )
 
 
-from backend.app.tasks import analysis_runner  # noqa: F401
+from backend.app.tasks import analysis_runner  # noqa: F401, E402
 
 
 def get_task_status(task_id: str) -> dict | None:
