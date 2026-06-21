@@ -1011,12 +1011,15 @@ def run_analysis(checkpoint: bool | None = None, ticker: str = None, date: str =
 
     # Set data vendor if provided (for NEPSE, etc.)
     if selections.get("data_vendor"):
+        vendor = selections["data_vendor"]
         config["data_vendors"] = {
-            "core_stock_apis": selections["data_vendor"],
-            "technical_indicators": selections["data_vendor"],
-            "fundamental_data": selections["data_vendor"],
-            "news_data": selections["data_vendor"],
+            "core_stock_apis": vendor,
+            "technical_indicators": vendor,
+            "fundamental_data": vendor,
+            "news_data": vendor,
         }
+        if vendor == "nepse" and not config.get("benchmark_ticker"):
+            config["benchmark_ticker"] = "NEPSE Index"
 
     # Create stats callback handler for tracking LLM/tool calls
     stats_handler = StatsCallbackHandler()

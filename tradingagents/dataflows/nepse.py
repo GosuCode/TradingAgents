@@ -1,3 +1,4 @@
+import logging
 import os
 from datetime import datetime, timedelta
 from typing import Annotated
@@ -5,6 +6,11 @@ from typing import Annotated
 import pandas as pd
 
 from .errors import NoMarketDataError
+
+logger = logging.getLogger(__name__)
+
+NEPSE_INDEX_ID = 58
+NEPSE_BENCHMARK_LABEL = "NEPSE Index"
 
 try:
     import pandas as pd
@@ -508,3 +514,153 @@ def get_global_news(
 ) -> str:
     """Get global/market news. Note: Not available for NEPSE."""
     return "Global news data is not available through NEPSE. News aggregation requires external sources not integrated with this NEPSE adapter."
+
+
+# --- Outcome tracking (memory/reflection Phase B) ---
+
+
+def _parse_index_history(data) -> pd.DataFrame:
+    """Parse nepse_scraper index history into a normalized DataFrame."""
+    if isinstance(data, dict):
+        content = data.get("content", [])
+    elif isinstance(data, list):
+        content = data
+    else:
+        return pd.DataFrame()
+
+    if not content:
+        return pd.DataFrame()
+
+    records = []
+    for item in content:
+        records.append({
+            "date": item.get("businessDate", ""),
+            "close": item.get("closingIndex", 0),
+        })
+
+    df = pd.DataFrame(records)
+    if "date" in df.columns:
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+        df = df.dropna(subset=["date"]).sort_values("date")
+    return df
+
+
+def _fetch_nepse_price_df(symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
+    """Fetch OHLCV for ``symbol`` between ``start_date`` and ``end_date``."""
+    if not NEPSE_SCRAPER_AVAILABLE or not PANDAS_AVAILABLE:
+        raise ImportError("nepse-scraper and pandas are required for NEPSE returns")
+
+    scraper = NepseScraper(verify_ssl=False)
+    raw = scraper.get_ticker_price_history(
+        ticker=symbol.upper().strip(),
+        start_date=start_date,
+        end_date=end_date,
+    )
+    df = _parse_price_history(raw)
+    if df.empty:
+        return df
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    df = df.dropna(subset=["date"]).sort_values("date")
+    return df
+
+
+def _fetch_nepse_index_df(start_date: str, end_date: str) -> pd.DataFrame:
+    """Fetch NEPSE Index closing levels between ``start_date`` and ``end_date``."""
+    if not NEPSE_SCRAPER_AVAILABLE or not PANDAS_AVAILABLE:
+        raise ImportError("nepse-scraper and pandas are required for NEPSE returns")
+
+    scraper = NepseScraper(verify_ssl=False)
+    raw = scraper.get_indices_history(NEPSE_INDEX_ID, start_date, end_date)
+    return _parse_index_history(raw)
+
+
+def _compute_session_return(
+    sessions: pd.DataFrame,
+    close_col: str,
+    settlement_days: int,
+    holding_days: int,
+) -> tuple[float | None, int | None]:
+    """Return (pct_change, holding_days) over aligned trading sessions.
+
+    Entry is at the close ``settlement_days`` sessions after ``trade_date``
+    (T+2 settlement when ``settlement_days`` is 2). Exit is ``holding_days``
+    sessions after entry. Returns ``(None, None)`` when data is not yet
+    available (too recent).
+    """
+    exit_idx = settlement_days + holding_days
+    if len(sessions) <= exit_idx:
+        return None, None
+
+    entry_close = float(sessions.iloc[settlement_days][close_col])
+    exit_close = float(sessions.iloc[exit_idx][close_col])
+    if entry_close <= 0:
+        return None, None
+
+    ret = (exit_close - entry_close) / entry_close
+    return float(ret), holding_days
+
+
+def fetch_nepse_returns(
+    ticker: str,
+    trade_date: str,
+    holding_days: int = 5,
+    settlement_days: int = 2,
+) -> tuple[float | None, float | None, int | None]:
+    """Fetch raw and alpha return for a NEPSE ticker vs the NEPSE Index.
+
+    Uses nepse_scraper (not yfinance). Counts **trading sessions** (Sun–Thu),
+    not calendar days. ``settlement_days`` models T+2: entry is at the close
+    ``settlement_days`` sessions after ``trade_date``; exit is ``holding_days``
+    sessions later.
+
+    Returns ``(raw_return, alpha_return, actual_holding_days)`` or
+    ``(None, None, None)`` when price data is unavailable or too recent.
+    """
+    if not NEPSE_SCRAPER_AVAILABLE or not PANDAS_AVAILABLE:
+        logger.warning("nepse-scraper or pandas unavailable; cannot resolve NEPSE outcome")
+        return None, None, None
+
+    try:
+        start_dt = datetime.strptime(trade_date, "%Y-%m-%d")
+        total_sessions = holding_days + settlement_days
+        # NEPSE trades Sun–Thu; add buffer for Fri/Sat and holidays.
+        calendar_buffer = total_sessions * 2 + 14
+        end_str = (start_dt + timedelta(days=calendar_buffer)).strftime("%Y-%m-%d")
+
+        stock_df = _fetch_nepse_price_df(ticker, trade_date, end_str)
+        index_df = _fetch_nepse_index_df(trade_date, end_str)
+
+        if stock_df.empty or index_df.empty:
+            return None, None, None
+
+        trade_dt = pd.to_datetime(trade_date)
+        stock_df = stock_df[stock_df["date"] >= trade_dt][["date", "close"]]
+        index_df = index_df[index_df["date"] >= trade_dt][["date", "close"]]
+
+        aligned = pd.merge(stock_df, index_df, on="date", suffixes=("_stock", "_index"))
+        aligned = aligned.sort_values("date").reset_index(drop=True)
+
+        if aligned.empty:
+            return None, None, None
+
+        raw, days = _compute_session_return(
+            aligned, "close_stock", settlement_days, holding_days,
+        )
+        if raw is None:
+            return None, None, None
+
+        bench_ret, _ = _compute_session_return(
+            aligned, "close_index", settlement_days, holding_days,
+        )
+        if bench_ret is None:
+            return None, None, None
+
+        alpha = raw - bench_ret
+        return raw, alpha, days
+
+    except Exception as e:
+        logger.warning(
+            "Could not resolve NEPSE outcome for %s on %s (will retry next run): %s",
+            ticker, trade_date, e,
+        )
+        return None, None, None

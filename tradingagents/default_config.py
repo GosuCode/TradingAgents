@@ -144,6 +144,11 @@ DEFAULT_CONFIG = _apply_env_overrides({
     # so the reflection label keeps reading "Alpha vs SPY" for US tickers
     # while non-US tickers get their regional index automatically.
     "benchmark_ticker": None,
+    # Outcome tracking: sessions to hold after settlement (Phase B reflection).
+    "outcome_holding_days": 5,
+    # NEPSE T+2 settlement — entry is this many trading sessions after the
+    # decision date. Ignored for yfinance (US) paths where settlement is 0.
+    "outcome_settlement_days": 2,
     "benchmark_map": {
         ".NS":  "^NSEI",       # NSE India (Nifty 50)
         ".BO":  "^BSESN",      # BSE India (Sensex)

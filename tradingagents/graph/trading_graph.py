@@ -200,20 +200,32 @@ class TradingAgentsGraph:
             ),
         }
 
+    @staticmethod
+    def _is_nepse_vendor(config: dict | None) -> bool:
+        """True when ``config`` selects NEPSE as the core stock vendor."""
+        if not config:
+            return False
+        vendors = config.get("data_vendors") or {}
+        return str(vendors.get("core_stock_apis", "")).lower() == "nepse"
+
     def _resolve_benchmark(self, ticker: str) -> str:
         """Pick the benchmark ticker for alpha calculation against ``ticker``.
 
         ``config["benchmark_ticker"]`` overrides everything when set; otherwise
         the suffix map matches the ticker's exchange suffix (e.g. ``.T`` for
-        Tokyo). US-listed tickers without a dotted suffix fall through to the
-        empty-suffix entry (SPY by default). Unrecognised suffixes (including
-        US tickers with dots like ``BRK.B``) also fall back to the empty-suffix
-        entry, which is the right default because the alpha calculation works
-        in USD.
+        Tokyo). When the core stock vendor is ``nepse``, defaults to the NEPSE
+        Index label. US-listed tickers without a dotted suffix fall through to
+        the empty-suffix entry (SPY by default). Unrecognised suffixes
+        (including US tickers with dots like ``BRK.B``) also fall back to the
+        empty-suffix entry, which is the right default because the alpha
+        calculation works in USD.
         """
         explicit = self.config.get("benchmark_ticker")
         if explicit:
             return explicit
+        if TradingAgentsGraph._is_nepse_vendor(self.config):
+            from tradingagents.dataflows.nepse import NEPSE_BENCHMARK_LABEL
+            return NEPSE_BENCHMARK_LABEL
         benchmark_map = self.config.get("benchmark_map", {})
         ticker_upper = ticker.upper()
         for suffix, benchmark in benchmark_map.items():
@@ -222,8 +234,8 @@ class TradingAgentsGraph:
         return benchmark_map.get("", "SPY")
 
     def _fetch_returns(
-        self, ticker: str, trade_date: str, holding_days: int = 5,
-        benchmark: str = "SPY",
+        self, ticker: str, trade_date: str, holding_days: int | None = None,
+        benchmark: str = "SPY", settlement_days: int | None = None,
     ) -> tuple[float | None, float | None, int | None]:
         """Fetch raw and alpha return for ticker over holding_days from trade_date.
 
@@ -231,7 +243,26 @@ class TradingAgentsGraph:
         caller via ``_resolve_benchmark``). Returns ``(raw_return, alpha_return,
         actual_holding_days)`` or ``(None, None, None)`` if price data is
         unavailable (too recent, delisted, or network error).
+
+        When the core stock vendor is ``nepse``, uses nepse_scraper with
+        trading-session counting and T+2 settlement (``outcome_settlement_days``).
         """
+        if holding_days is None:
+            config = getattr(self, "config", None) if self is not None else None
+            if config:
+                holding_days = config.get("outcome_holding_days", 5)
+            else:
+                holding_days = 5
+
+        config = getattr(self, "config", None) if self is not None else None
+        if config and TradingAgentsGraph._is_nepse_vendor(config):
+            if settlement_days is None:
+                settlement_days = config.get("outcome_settlement_days", 2)
+            from tradingagents.dataflows.nepse import fetch_nepse_returns
+            return fetch_nepse_returns(
+                ticker, trade_date, holding_days, settlement_days,
+            )
+
         from tradingagents.dataflows.symbol_utils import normalize_symbol
 
         try:

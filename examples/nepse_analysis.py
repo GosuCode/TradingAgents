@@ -27,6 +27,7 @@ config["data_vendors"] = {
     "fundamental_data": "nepse",
     "news_data": "nepse",
 }
+config["benchmark_ticker"] = "NEPSE Index"
 
 ta = TradingAgentsGraph(debug=True, config=config)
 
