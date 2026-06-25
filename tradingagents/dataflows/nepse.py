@@ -1,5 +1,6 @@
 import logging
 import os
+import time
 from datetime import datetime, timedelta
 from typing import Annotated
 
@@ -8,6 +9,12 @@ import pandas as pd
 from .errors import NoMarketDataError
 
 logger = logging.getLogger(__name__)
+
+# In-memory session cache for get_stock_data
+_in_memory_cache: dict[tuple[str, str, str], tuple[float, str]] = {}
+_IN_MEMORY_TTL_SECS = 3600  # 1 hour
+
+_DISK_CACHE_MAX_AGE = timedelta(hours=24)
 
 NEPSE_INDEX_ID = 58
 NEPSE_BENCHMARK_LABEL = "NEPSE Index"
@@ -31,6 +38,27 @@ except ImportError:
     STOCKSTATS_AVAILABLE = False
 
 
+def _fetch_and_cache_nepse(
+    symbol: str,
+    start_str: str,
+    end_str: str,
+    cache_file: str,
+) -> pd.DataFrame:
+    """Fetch NEPSE data and save to disk cache. Returns DataFrame with lowercase columns."""
+    scraper = NepseScraper(verify_ssl=False)
+    raw = scraper.get_ticker_price_history(
+        ticker=symbol.upper().strip(),
+        start_date=start_str,
+        end_date=end_str,
+    )
+    df = _parse_price_history(raw)
+    if df.empty or "close" not in df.columns:
+        raise NoMarketDataError(symbol, symbol, f"NEPSE returned no rows for {symbol}")
+    os.makedirs(os.path.dirname(cache_file), exist_ok=True)
+    df.to_csv(cache_file, index=False, encoding="utf-8")
+    return df
+
+
 def get_stock_data(
     symbol: Annotated[str, "NEPSE stock symbol (e.g., 'NABIL', 'NIFRA', 'MEN')"],
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
@@ -39,39 +67,95 @@ def get_stock_data(
     """
     Get OHLCV stock data for a NEPSE-listed company using nepse_scraper.
     NEPSE uses company codes like NABIL, NIFRA, HBL, MEN, etc.
+
+    Uses a two-layer cache:
+      1. In-memory (per session, 1-hour TTL)
+      2. Broad-window disk cache (5 years, 24-hour staleness)
     """
     if not NEPSE_SCRAPER_AVAILABLE:
         return "Error: nepse_scraper not installed. Run: pip install nepse-scraper"
-
     if not PANDAS_AVAILABLE:
         return "Error: pandas not installed. Run: pip install pandas"
 
-    try:
-        scraper = NepseScraper(verify_ssl=False)
-        result = scraper.get_ticker_price_history(
-            ticker=symbol.upper().strip(),
-            start_date=start_date,
-            end_date=end_date
-        )
+    from tradingagents.dataflows.config import get_config
+    from tradingagents.dataflows.utils import safe_ticker_component
 
-        df = _parse_price_history(result)
+    safe_sym = safe_ticker_component(symbol.upper().strip())
 
-        if df.empty:
-            return f"No data found for '{symbol.upper()}' on NEPSE between {start_date} and {end_date}"
+    # --- Layer 1: In-memory cache ---
+    key = (safe_sym, start_date, end_date)
+    now = time.time()
+    cached_entry = _in_memory_cache.get(key)
+    if cached_entry is not None:
+        ts, cached_result = cached_entry
+        if now - ts < _IN_MEMORY_TTL_SECS:
+            return cached_result
 
-        numeric_cols = ["open", "high", "low", "close", "volume"]
-        for col in numeric_cols:
-            if col in df.columns:
-                df[col] = df[col].round(2)
+    # --- Layer 2: Broad-window disk cache ---
+    config = get_config()
+    today = pd.Timestamp.today()
+    window_start = today - pd.DateOffset(years=5)
+    window_start_str = window_start.strftime("%Y-%m-%d")
+    window_end_str = (today + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
 
-        header = f"# NEPSE stock data for {symbol.upper()} from {start_date} to {end_date}\n"
-        header += f"# Total records: {len(df)}\n"
-        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+    cache_file = os.path.join(
+        config["data_cache_dir"],
+        f"{safe_sym}-NEPSE-full.csv",
+    )
 
-        return header + df.to_csv(index=False)
+    df = None
+    cache_hit = os.path.exists(cache_file)
 
-    except Exception as e:
-        return f"Error fetching NEPSE data for {symbol}: {str(e)}"
+    if cache_hit:
+        try:
+            cached_df = pd.read_csv(cache_file, on_bad_lines="skip", encoding="utf-8")
+            if not cached_df.empty and "close" in cached_df.columns:
+                file_age = timedelta(seconds=time.time() - os.path.getmtime(cache_file))
+                if file_age < _DISK_CACHE_MAX_AGE:
+                    df = cached_df
+                else:
+                    # Stale cache: try to refresh, fall back on failure
+                    try:
+                        df = _fetch_and_cache_nepse(symbol, window_start_str, window_end_str, cache_file)
+                    except Exception:
+                        logger.warning("NEPSE API fetch failed, using stale cache for %s", symbol)
+                        df = cached_df
+        except Exception as e:
+            logger.warning("Failed to read NEPSE cache for %s: %s", symbol, e)
+
+    if df is None:
+        try:
+            df = _fetch_and_cache_nepse(symbol, window_start_str, window_end_str, cache_file)
+        except NoMarketDataError:
+            return f"No data found for '{symbol.upper()}' on NEPSE"
+        except Exception as e:
+            return f"Error fetching NEPSE data for {symbol}: {str(e)}"
+
+    # Normalise dates and filter to requested range
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+
+    req_start = pd.to_datetime(start_date)
+    req_end = pd.to_datetime(end_date)
+    filtered = df[(df["date"] >= req_start) & (df["date"] <= req_end)].copy()
+
+    if filtered.empty:
+        return f"No data found for '{symbol.upper()}' on NEPSE between {start_date} and {end_date}"
+
+    numeric_cols = ["open", "high", "low", "close", "volume"]
+    for col in numeric_cols:
+        if col in filtered.columns:
+            filtered[col] = filtered[col].round(2)
+
+    header = f"# NEPSE stock data for {symbol.upper()} from {start_date} to {end_date}\n"
+    header += f"# Total records: {len(filtered)}\n"
+    header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+
+    result = header + filtered.to_csv(index=False)
+
+    # Store in in-memory cache
+    _in_memory_cache[key] = (time.time(), result)
+
+    return result
 
 
 def get_stock_stats_indicators_window(
