@@ -6,7 +6,7 @@ What works, what doesn't, and what to expect when using `--vendor nepse`. See [N
 
 ## Broken
 
-**Fundamentals analyst** — The CLI and web UI set `fundamental_data: "nepse"`, but no NEPSE vendor exists for `get_fundamentals`, `get_balance_sheet`, `get_cashflow`, or `get_income_statement`. Tool calls raise a `ValueError`. The analyst may report failure or improvise without real financial statements.
+**Fundamentals analyst** — The CLI sets `fundamental_data: "nepse"`, but no NEPSE vendor exists for `get_fundamentals`, `get_balance_sheet`, `get_cashflow`, or `get_income_statement`. Tool calls raise a `ValueError`. The analyst may report failure or improvise without real financial statements.
 
 Neither yfinance nor Alpha Vantage covers NEPSE fundamentals, so this analyst is degraded for NEPSE regardless of vendor.
 
@@ -45,7 +45,6 @@ Agents still run using price, sector, and technical data, but news and social la
 - Instrument identity (company name, sector from NEPSE API)
 - Full pipeline (research debate → trader → risk → portfolio manager)
 - Memory log and reflections (when returns resolve)
-- Web NEPSE dashboard (index, gainers, losers, summary)
 - Checkpoint/resume
 
 ---

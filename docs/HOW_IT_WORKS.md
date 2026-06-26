@@ -50,6 +50,7 @@ python3 -m cli.main --ticker CYCL --vendor nepse
 ```
 
 This tells the system:
+
 - **What** to analyze (CYCL stock)
 - **Where** to get data (NEPSE via nepse-scraper)
 
@@ -57,12 +58,12 @@ This tells the system:
 
 Each agent looks at data from a different angle:
 
-| Agent | Job | What it looks at |
-|-------|-----|------------------|
-| Market Analyst | Price trends | OHLCV data, moving averages |
-| Social Analyst | Social sentiment | Social media trends |
-| News Analyst | News impact | Recent news & events |
-| Fundamentals Analyst | Company health | Financial statements |
+| Agent                | Job              | What it looks at            |
+| -------------------- | ---------------- | --------------------------- |
+| Market Analyst       | Price trends     | OHLCV data, moving averages |
+| Social Analyst       | Social sentiment | Social media trends         |
+| News Analyst         | News impact      | Recent news & events        |
+| Fundamentals Analyst | Company health   | Financial statements        |
 
 **Analogy:** Like 4 doctors examining a patient - one checks heart, another checks lungs, etc.
 
@@ -104,11 +105,11 @@ Trader Plan: "Buy 1000 shares at NPR 1470, stop loss at 1400"
 
 Three risk analysts evaluate the plan:
 
-| Analyst | Risk Style | Response |
-|---------|------------|----------|
-| Aggressive | High risk, high reward | "Approve, potential 15% gain" |
-| Neutral | Moderate | "Approve with caution" |
-| Conservative | Low risk | "Reject, too volatile" |
+| Analyst      | Risk Style             | Response                      |
+| ------------ | ---------------------- | ----------------------------- |
+| Aggressive   | High risk, high reward | "Approve, potential 15% gain" |
+| Neutral      | Moderate               | "Approve with caution"        |
+| Conservative | Low risk               | "Reject, too volatile"        |
 
 **Analogy:** Like your family discussing an investment - dad says go big, mom says be careful, sister says wait.
 
@@ -135,18 +136,18 @@ graph LR
     D -->|yfinance| E[yfinance API]
     D -->|nepse| F[nepse_scraper]
     D -->|alpha_vantage| G[Alpha Vantage API]
-    
+
     E --> H[Stock Data]
     F --> H
     G --> H
-    
+
     H --> I[Analyst Team]
     I --> J[Research Team]
     J --> K[Trader]
     K --> L[Risk Management]
     L --> M[Portfolio Manager]
     M --> N[Final Decision]
-    
+
     N --> O[Results saved to ~/.tradingagents/logs/]
 ```
 
@@ -170,6 +171,7 @@ config["data_vendors"] = {
 ```
 
 Or add alias to `~/.bashrc`:
+
 ```bash
 alias ta='/home/alembershreesh/miniconda3/bin/python -m cli.main'
 # Then run: ta --ticker CYCL --vendor nepse
@@ -191,32 +193,31 @@ alias ta='/home/alembershreesh/miniconda3/bin/python -m cli.main'
 
 ## What Gets Saved
 
+Runs automatically save two things under `~/.tradingagents/logs/<TICKER>/<DATE>/`:
+
 ```
 ~/.tradingagents/logs/CYCL/2026-05-09/
-├── complete_report.md      # Everything in one file
-├── 1_analysts/             # Each analyst's report
-├── 2_research/             # Debate & decision
-├── 3_trading/              # Investment plan
-├── 4_risk/                 # Risk evaluation
-├── 5_portfolio/           # Final decision
+├── reports/                # Per-section markdown
 └── message_tool.log       # Full conversation log
 ```
 
+At the end of a run, you're prompted to save a combined `complete_report.md` (optional, saved to current working directory by default).
+
 ## Key Concepts
 
-| Term | Meaning |
-|------|---------|
-| **Agent** | AI that does one specific job |
-| **Graph** | System that connects all agents |
-| **Vendor** | Data source (yfinance, NEPSE, etc.) |
-| **propagate** | Run the full analysis pipeline |
+| Term                | Meaning                                 |
+| ------------------- | --------------------------------------- |
+| **Agent**           | AI that does one specific job           |
+| **Graph**           | System that connects all agents         |
+| **Vendor**          | Data source (yfinance, NEPSE, etc.)     |
+| **propagate**       | Run the full analysis pipeline          |
 | **route_to_vendor** | Function that picks correct data source |
 
 ## Simple Summary
 
 ```
-You run CLI → Config sets data source → Agents analyze → 
-Research debates → Trader plans → Risk checks → 
+You run CLI → Config sets data source → Agents analyze →
+Research debates → Trader plans → Risk checks →
 Portfolio decides → Results saved
 ```
 

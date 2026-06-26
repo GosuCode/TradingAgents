@@ -19,13 +19,13 @@ A reference of what this project provides. For setup and usage, see [README.md](
 
 ## Agent pipeline
 
-| Stage | Agents | Role |
-|-------|--------|------|
-| Analysts | Market, Sentiment, News, Fundamentals | Collect data and write section reports |
-| Research | Bull, Bear, Research Manager | Debate thesis; manager picks direction |
-| Trading | Trader | Turn research into an investment plan |
-| Risk | Aggressive, Neutral, Conservative | Challenge the plan from three risk profiles |
-| Portfolio | Portfolio Manager | Final Buy / Overweight / Hold / Underweight / Sell decision |
+| Stage     | Agents                                | Role                                                        |
+| --------- | ------------------------------------- | ----------------------------------------------------------- |
+| Analysts  | Market, Sentiment, News, Fundamentals | Collect data and write section reports                      |
+| Research  | Bull, Bear, Research Manager          | Debate thesis; manager picks direction                      |
+| Trading   | Trader                                | Turn research into an investment plan                       |
+| Risk      | Aggressive, Conservative, Neutral     | Challenge the plan from three risk profiles                 |
+| Portfolio | Portfolio Manager                     | Final Buy / Overweight / Hold / Underweight / Sell decision |
 
 Optional **crypto** pipeline (`asset_type="crypto"`) with crypto-aware instrument context.
 
@@ -35,14 +35,14 @@ Optional **crypto** pipeline (`asset_type="crypto"`) with crypto-aware instrumen
 
 Per-category vendor configuration (`data_vendors`, `tool_vendors`):
 
-| Category | Vendors | Tools |
-|----------|---------|-------|
-| Stock prices | yfinance, alpha_vantage, **nepse** | OHLCV history |
-| Technical indicators | yfinance, alpha_vantage, **nepse** | MACD, RSI, Bollinger, SMA/EMA, ATR, … |
-| Fundamentals | yfinance, alpha_vantage | Financials, balance sheet, cash flow, income statement |
-| News | yfinance, alpha_vantage, nepse (stub) | Ticker news, global/macro news |
-| Macro | fred | Rates, inflation, labor, growth (requires `FRED_API_KEY`) |
-| Prediction markets | polymarket | Event probabilities (keyless) |
+| Category             | Vendors                               | Tools                                                     |
+| -------------------- | ------------------------------------- | --------------------------------------------------------- |
+| Stock prices         | yfinance, alpha_vantage, **nepse**    | OHLCV history                                             |
+| Technical indicators | yfinance, alpha_vantage, **nepse**    | MACD, RSI, Bollinger, SMA/EMA, ATR, …                     |
+| Fundamentals         | yfinance, alpha_vantage               | Financials, balance sheet, cash flow, income statement    |
+| News                 | yfinance, alpha_vantage, nepse (stub) | Ticker news, global/macro news                            |
+| Macro                | fred                                  | Rates, inflation, labor, growth (requires `FRED_API_KEY`) |
+| Prediction markets   | polymarket                            | Event probabilities (keyless)                             |
 
 **Sentiment sources** (Sentiment Analyst): Yahoo Finance news headlines, StockTwits cashtag stream, Reddit posts.
 
@@ -65,7 +65,6 @@ Per-category vendor configuration (`data_vendors`, `tool_vendors`):
 - NEPSE Index benchmark for outcome tracking
 - Outcome tracking with T+2 settlement and trading-session counting (Sun–Thu)
 - CLI: `--vendor nepse` auto-sets benchmark
-- Web API: live index, gainers, losers, turnover, market summary
 - Script: `scripts/nepse_point.py` for a quick index snapshot
 - Example: `examples/nepse_analysis.py`
 
@@ -75,22 +74,22 @@ Per-category vendor configuration (`data_vendors`, `tool_vendors`):
 
 ## LLM providers
 
-| Provider | Notes |
-|----------|-------|
-| OpenAI | GPT-5.x family, Responses API |
-| Google | Gemini, thinking level config |
-| Anthropic | Claude, effort config |
-| xAI | Grok |
-| DeepSeek | |
-| Qwen / Qwen-CN | International and China endpoints |
-| GLM / GLM-CN | Zhipu, international and China |
-| MiniMax / MiniMax-CN | |
-| OpenRouter | |
-| Mistral, Kimi, Groq, NVIDIA | OpenAI-compatible |
-| Ollama | Local models, remote via `OLLAMA_BASE_URL` |
-| Azure OpenAI | Enterprise |
-| AWS Bedrock | Optional extra install |
-| OpenAI-compatible | Any custom endpoint (vLLM, LM Studio, …) |
+| Provider                    | Notes                                      |
+| --------------------------- | ------------------------------------------ |
+| OpenAI                      | GPT-5.x family, Responses API              |
+| Google                      | Gemini, thinking level config              |
+| Anthropic                   | Claude, effort config                      |
+| xAI                         | Grok                                       |
+| DeepSeek                    |                                            |
+| Qwen / Qwen-CN              | International and China endpoints          |
+| GLM / GLM-CN                | Zhipu, international and China             |
+| MiniMax / MiniMax-CN        |                                            |
+| OpenRouter                  |                                            |
+| Mistral, Kimi, Groq, NVIDIA | OpenAI-compatible                          |
+| Ollama                      | Local models, remote via `OLLAMA_BASE_URL` |
+| Azure OpenAI                | Enterprise                                 |
+| AWS Bedrock                 | Optional extra install                     |
+| OpenAI-compatible           | Any custom endpoint (vLLM, LM Studio, …)   |
 
 Configurable via CLI, `default_config.py`, or `TRADINGAGENTS_*` environment variables.
 
@@ -103,21 +102,19 @@ tradingagents analyze              # interactive prompts
 python3 -m cli.main --ticker …     # direct flags
 ```
 
-| Flag | Purpose |
-|------|---------|
-| `--ticker` / `-t` | Symbol to analyze |
-| `--date` / `-d` | Analysis date (`YYYY-MM-DD`) |
-| `--vendor` | Data vendor (`yfinance`, `alpha_vantage`, `nepse`) |
-| `--checkpoint` | Resume interrupted runs |
-| `--clear-checkpoints` | Reset saved graph state |
+| Flag                  | Purpose                                            |
+| --------------------- | -------------------------------------------------- |
+| `--ticker` / `-t`     | Symbol to analyze                                  |
+| `--date` / `-d`       | Analysis date (`YYYY-MM-DD`)                       |
+| `--vendor`            | Data vendor (`yfinance`, `alpha_vantage`, `nepse`) |
+| `--checkpoint`        | Resume interrupted runs                            |
+| `--clear-checkpoints` | Reset saved graph state                            |
 
 Interactive setup: analyst selection, research depth, LLM provider/model, output language, data vendor.
 
 **Output:** `~/.tradingagents/logs/<TICKER>/<DATE>/` — `complete_report.md`, `reports/*.md`, `message_tool.log`, strategy state JSON.
 
 ---
-
-
 
 ## Memory and outcome tracking
 
@@ -127,10 +124,10 @@ Interactive setup: analyst selection, research depth, LLM provider/model, output
 2. On the next run for the same ticker, the framework fetches realized returns, computes alpha vs benchmark, and writes an LLM **reflection**.
 3. Past decisions and reflections are injected into the Portfolio Manager prompt.
 
-| Market | Return source | Benchmark | Settlement |
-|--------|---------------|-----------|------------|
-| yfinance | Yahoo Finance | SPY or regional index | Same-day entry |
-| NEPSE | nepse_scraper | NEPSE Index | T+2, 5 trading sessions |
+| Market   | Return source | Benchmark             | Settlement              |
+| -------- | ------------- | --------------------- | ----------------------- |
+| yfinance | Yahoo Finance | SPY or regional index | Same-day entry          |
+| NEPSE    | nepse_scraper | NEPSE Index           | T+2, 5 trading sessions |
 
 Config: `outcome_holding_days`, `outcome_settlement_days`, `memory_log_max_entries`, `TRADINGAGENTS_MEMORY_LOG_PATH`.
 
@@ -160,7 +157,7 @@ Config: `outcome_holding_days`, `outcome_settlement_days`, `memory_log_max_entri
 ## Deployment
 
 - `pip install .` — package + CLI entry point `tradingagents`
-- Docker Compose for CLI-only or full web stack
+- Docker Compose for CLI-only
 - Ollama profile for local LLM in Docker
 - `.env` / `.env.enterprise` for API keys
 

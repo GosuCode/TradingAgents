@@ -75,10 +75,11 @@ This is **not** a portfolio simulator — no position sizing, fees, slippage, or
 Results are saved under `~/.tradingagents/logs/<TICKER>/<DATE>/`:
 
 ```
-complete_report.md
 reports/           # per-section markdown
-message_tool.log
+message_tool.log   # full conversation log
 ```
+
+A combined `complete_report.md` can be saved interactively when prompted at the end of a run, or programmatically via `save_reports()`.
 
 ## NEPSE index snapshot
 
