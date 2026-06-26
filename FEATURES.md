@@ -117,22 +117,7 @@ Interactive setup: analyst selection, research depth, LLM provider/model, output
 
 ---
 
-## Web interface
 
-Docker Compose stack: **frontend** (React), **backend** (FastAPI), **worker** (Celery), **Redis**.
-
-| Page / API | Purpose |
-|------------|---------|
-| Dashboard | NEPSE index, gainers, losers, turnover, summary |
-| Analysis | Submit ticker + date + vendor; stream progress |
-| Reports | Browse past analysis reports |
-| Settings | View LLM and data vendor config |
-| `GET /api/nepse/*` | Index, gainers, losers, turnover, summary |
-| `POST /api/analysis` | Queue analysis job |
-| `WS /api/analysis/ws/{task_id}` | Live progress stream |
-| `GET /api/reports` | List saved reports |
-
----
 
 ## Memory and outcome tracking
 
