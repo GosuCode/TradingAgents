@@ -18,8 +18,13 @@ from .errors import (
     VendorRateLimitError,
 )
 from .fred import get_macro_data as get_fred_macro_data
+from .nrb import get_macro_data as get_nrb_macro_data
 from .nepse import (
+    get_balance_sheet as get_nepse_balance_sheet,
+    get_cashflow as get_nepse_cashflow,
+    get_fundamentals as get_nepse_fundamentals,
     get_global_news as get_nepse_global_news,
+    get_income_statement as get_nepse_income_statement,
     get_nepse_index,
     get_nepse_summary,
     get_nepse_top_gainers,
@@ -90,6 +95,7 @@ TOOLS_CATEGORIES = {
 VENDOR_LIST = [
     "yfinance",
     "fred",
+    "nrb",
     "polymarket",
     "alpha_vantage",
     "nepse",
@@ -120,18 +126,22 @@ VENDOR_METHODS = {
     "get_fundamentals": {
         "alpha_vantage": get_alpha_vantage_fundamentals,
         "yfinance": get_yfinance_fundamentals,
+        "nepse": get_nepse_fundamentals,
     },
     "get_balance_sheet": {
         "alpha_vantage": get_alpha_vantage_balance_sheet,
         "yfinance": get_yfinance_balance_sheet,
+        "nepse": get_nepse_balance_sheet,
     },
     "get_cashflow": {
         "alpha_vantage": get_alpha_vantage_cashflow,
         "yfinance": get_yfinance_cashflow,
+        "nepse": get_nepse_cashflow,
     },
     "get_income_statement": {
         "alpha_vantage": get_alpha_vantage_income_statement,
         "yfinance": get_yfinance_income_statement,
+        "nepse": get_nepse_income_statement,
     },
     # news_data
     "get_news": {
@@ -151,6 +161,7 @@ VENDOR_METHODS = {
     # macro_data
     "get_macro_indicators": {
         "fred": get_fred_macro_data,
+        "nrb": get_nrb_macro_data,
     },
     # prediction_markets
     "get_prediction_markets": {

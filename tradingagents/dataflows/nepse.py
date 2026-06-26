@@ -582,13 +582,238 @@ def get_nepse_price_history(
     return get_stock_data(symbol, start_date, end_date)
 
 
+# --- Fundamentals (from NEPSE ticker info + disclosures) ---
+
+
+def _get_ticker_info_or_error(ticker: str) -> dict:
+    """Return ticker_info dict or raise NoMarketDataError."""
+    if not NEPSE_SCRAPER_AVAILABLE:
+        raise NoMarketDataError(ticker, ticker, "nepse_scraper not installed")
+    try:
+        scraper = NepseScraper(verify_ssl=False)
+        info = scraper.get_ticker_info(ticker.upper().strip())
+        if not info:
+            raise NoMarketDataError(ticker, ticker, "no ticker info returned")
+        return info
+    except NoMarketDataError:
+        raise
+    except Exception as e:
+        raise NoMarketDataError(ticker, ticker, str(e)) from e
+
+
+def get_fundamentals(
+    ticker: Annotated[str, "NEPSE stock symbol"],
+    curr_date: Annotated[str, "Current date YYYY-mm-dd"] = None,
+) -> str:
+    """
+    Get company fundamentals for a NEPSE-listed stock from the NEPSE API.
+    Returns company profile, key statistics, and market data.
+    """
+    if not PANDAS_AVAILABLE:
+        return "Error: pandas not installed. Run: pip install pandas"
+
+    info = _get_ticker_info_or_error(ticker)
+    sym = ticker.upper().strip()
+    sec = info.get("security", {})
+    company = sec.get("companyId", {}) if isinstance(sec.get("companyId"), dict) else {}
+    sector_master = company.get("sectorMaster", {}) if isinstance(company.get("sectorMaster"), dict) else {}
+    trade = info.get("securityDailyTradeDto", {})
+
+    lines = [f"# NEPSE fundamentals for {sym}", ""]
+    lines.append(f"**Company:** {sec.get('securityName', 'N/A')}")
+    lines.append(f"**Sector:** {sector_master.get('sectorDescription', 'N/A')}")
+    lines.append(f"**Instrument Type:** {(sec.get('instrumentType') or {}).get('description', 'N/A')}")
+    lines.append(f"**ISIN:** {sec.get('isin', 'N/A')}")
+    lines.append(f"**Listing Date:** {sec.get('listingDate', 'N/A')}")
+    lines.append(f"**Face Value:** NPR {sec.get('faceValue', 'N/A')}")
+    lines.append(f"**Listed Shares:** {info.get('stockListedShares', 'N/A')}")
+    lines.append(f"**Paid-up Capital:** NPR {info.get('paidUpCapital', 'N/A')}")
+    lines.append(f"**Market Capitalization:** NPR {info.get('marketCapitalization', 'N/A')}")
+    lines.append(f"**Public Shares:** {info.get('publicShares', 'N/A')} ({info.get('publicPercentage', 'N/A')}%)")
+    lines.append(f"**Promoter Shares:** {info.get('promoterShares', 'N/A')} ({info.get('promoterPercentage', 'N/A')}%)")
+    lines.append(f"**52-Week High:** NPR {trade.get('fiftyTwoWeekHigh', 'N/A')}")
+    lines.append(f"**52-Week Low:** NPR {trade.get('fiftyTwoWeekLow', 'N/A')}")
+    lines.append(f"**Last Traded Price:** NPR {trade.get('lastTradedPrice', 'N/A')}")
+    lines.append(f"**Previous Close:** NPR {trade.get('previousClose', 'N/A')}")
+    lines.append(f"**Open Price:** NPR {trade.get('openPrice', 'N/A')}")
+    lines.append(f"**High Price:** NPR {trade.get('highPrice', 'N/A')}")
+    lines.append(f"**Low Price:** NPR {trade.get('lowPrice', 'N/A')}")
+    lines.append(f"**Volume:** {trade.get('totalTradeQuantity', 'N/A')}")
+    lines.append(f"**Trades:** {trade.get('totalTrades', 'N/A')}")
+    lines.append(f"**Share Group:** {(sec.get('shareGroupId') or {}).get('description', 'N/A')}")
+    lines.append(f"**Regulatory Body:** {sector_master.get('regulatoryBody', 'N/A')}")
+    lines.append(f"**Website:** {company.get('companyWebsite', 'N/A')}")
+
+    return "\n".join(lines) + "\n"
+
+
+def _ticker_from_headline(headline: str) -> str | None:
+    """Extract ticker symbol from headline brackets, e.g. ``[NABIL]``."""
+    import re
+    m = re.findall(r"\[(\w+)\]", headline)
+    return m[-1].upper().strip() if m else None
+
+
+def _filter_disclosures_by_ticker(ticker: str) -> list:
+    """Filter company disclosures for a specific ticker.
+
+    Bypasses ``NepseScraper.get_company_disclosures()`` because that method
+    reads ``response.json().get('news', [])`` while the actual response key
+    is ``companyNews``, so the library call always returns an empty list.
+    We hit the endpoint directly instead. Ticker matching uses the ``[TICKER]``
+    bracket in the headline since the NEPSE API puts the symbol there
+    (e.g. ``Appointment of Acting CEO [NMIC]``) while ``newsSource`` is
+    unreliable free text.
+    """
+    if not NEPSE_SCRAPER_AVAILABLE:
+        return []
+    try:
+        scraper = NepseScraper(verify_ssl=False)
+        endpoint = scraper.endpoints.get("disclosure")
+        if not endpoint:
+            return []
+        resp = scraper.session.get(endpoint["api"])
+        data = resp.json()
+        items = data.get("companyNews", [])
+        sym = ticker.upper().strip()
+        return [
+            d for d in items
+            if _ticker_from_headline(d.get("newsHeadline", "")) == sym
+        ]
+    except Exception:
+        return []
+
+
+def _format_disclosures(disclosures: list, title: str) -> str:
+    """Format a list of disclosure dicts into markdown."""
+    if not disclosures:
+        return f"# {title}\n\nNo disclosures found.\n"
+    lines = [f"# {title}", f"Total: {len(disclosures)}", ""]
+    for d in disclosures:
+        headline = d.get("newsHeadline", "Untitled")
+        body = d.get("newsBody", "")
+        date = d.get("addedDate", "").split("T")[0] if d.get("addedDate") else ""
+        source = d.get("newsSource", "")
+        lines.append(f"### {headline}")
+        lines.append(f"**Date:** {date} | **Source:** {source}")
+        if body:
+            import re
+            clean = re.sub(r"<[^>]+>", "", body).strip()
+            if clean:
+                lines.append(f"> {clean[:500]}")
+        lines.append("")
+    return "\n".join(lines)
+
+
+def get_balance_sheet(
+    ticker: Annotated[str, "NEPSE stock symbol"],
+    curr_date: Annotated[str, "Current date YYYY-mm-dd"] = None,
+) -> str:
+    """
+    Get balance sheet related disclosures for a NEPSE-listed stock.
+    Returns company disclosures matching balance-sheet keywords.
+    """
+    if not NEPSE_SCRAPER_AVAILABLE:
+        return "Error: nepse_scraper not installed. Run: pip install nepse-scraper"
+    if not PANDAS_AVAILABLE:
+        return "Error: pandas not installed. Run: pip install pandas"
+
+    keywords = {"balance sheet", "financial statement", "financial position", "statement of affairs"}
+    items = _filter_disclosures_by_ticker(ticker)
+    matched = [d for d in items if any(k in (d.get("newsHeadline", "") + d.get("newsBody", "")).lower() for k in keywords)]
+    return _format_disclosures(matched, f"NEPSE balance sheet disclosures for {ticker.upper()}")
+
+
+def get_cashflow(
+    ticker: Annotated[str, "NEPSE stock symbol"],
+    curr_date: Annotated[str, "Current date YYYY-mm-dd"] = None,
+) -> str:
+    """
+    Get cash flow related disclosures for a NEPSE-listed stock.
+    Returns company disclosures matching cash-flow keywords.
+    """
+    if not NEPSE_SCRAPER_AVAILABLE:
+        return "Error: nepse_scraper not installed. Run: pip install nepse-scraper"
+    if not PANDAS_AVAILABLE:
+        return "Error: pandas not installed. Run: pip install pandas"
+
+    keywords = {"cash flow", "cashflow"}
+    items = _filter_disclosures_by_ticker(ticker)
+    matched = [d for d in items if any(k in (d.get("newsHeadline", "") + d.get("newsBody", "")).lower() for k in keywords)]
+    return _format_disclosures(matched, f"NEPSE cash flow disclosures for {ticker.upper()}")
+
+
+def get_income_statement(
+    ticker: Annotated[str, "NEPSE stock symbol"],
+    curr_date: Annotated[str, "Current date YYYY-mm-dd"] = None,
+) -> str:
+    """
+    Get income statement related disclosures for a NEPSE-listed stock.
+    Returns company disclosures matching income/profit keywords.
+    """
+    if not NEPSE_SCRAPER_AVAILABLE:
+        return "Error: nepse_scraper not installed. Run: pip install nepse-scraper"
+    if not PANDAS_AVAILABLE:
+        return "Error: pandas not installed. Run: pip install pandas"
+
+    keywords = {"income", "profit", "result", "financial performance", "revenue", "earnings"}
+    items = _filter_disclosures_by_ticker(ticker)
+    matched = [d for d in items if any(k in (d.get("newsHeadline", "") + d.get("newsBody", "")).lower() for k in keywords)]
+    return _format_disclosures(matched, f"NEPSE income statement disclosures for {ticker.upper()}")
+
+
+# --- News (from NEPSE company disclosures + notices) ---
+
+
 def get_news(
     ticker: Annotated[str, "NEPSE stock symbol"],
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
     end_date: Annotated[str, "End date in yyyy-mm-dd format"],
 ) -> str:
-    """Get news for a NEPSE stock. Note: News data not available for NEPSE."""
-    return "News data is not available for NEPSE-listed stocks. NEPSE does not provide a public news API. Please rely on technical and fundamental analysis of price data."
+    """
+    Get news/disclosures for a NEPSE-listed stock from the NEPSE API.
+    Returns company announcements and regulatory filings.
+    """
+    if not NEPSE_SCRAPER_AVAILABLE:
+        return "Error: nepse_scraper not installed. Run: pip install nepse-scraper"
+
+    items = _filter_disclosures_by_ticker(ticker)
+    if not items:
+        return f"# NEPSE news for {ticker.upper()}\n\nNo news found.\n"
+
+    start_dt = pd.to_datetime(start_date) if start_date else None
+    end_dt = pd.to_datetime(end_date) if end_date else None
+
+    filtered = []
+    for d in items:
+        added = d.get("addedDate", "")
+        if added:
+            dt = pd.to_datetime(added.split("T")[0], errors="coerce")
+            if pd.isna(dt):
+                continue
+            if start_dt and dt < start_dt:
+                continue
+            if end_dt and dt > end_dt:
+                continue
+            filtered.append(d)
+
+    if not filtered:
+        return f"# NEPSE news for {ticker.upper()}\n\nNo news found between {start_date} and {end_date}.\n"
+
+    lines = [f"# NEPSE news for {ticker.upper()}", f"Period: {start_date} to {end_date}", f"Total: {len(filtered)}", ""]
+    for d in filtered:
+        headline = d.get("newsHeadline", "Untitled")
+        body = d.get("newsBody", "")
+        date = d.get("addedDate", "").split("T")[0] if d.get("addedDate") else ""
+        lines.append(f"### {headline}")
+        lines.append(f"**Date:** {date}")
+        if body:
+            import re
+            clean = re.sub(r"<[^>]+>", "", body).strip()
+            if clean:
+                lines.append(f"> {clean[:500]}")
+        lines.append("")
+    return "\n".join(lines)
 
 
 def get_global_news(
@@ -596,8 +821,64 @@ def get_global_news(
     look_back_days: Annotated[int, "Number of days"] = 7,
     limit: Annotated[int, "Max articles"] = 5,
 ) -> str:
-    """Get global/market news. Note: Not available for NEPSE."""
-    return "Global news data is not available through NEPSE. News aggregation requires external sources not integrated with this NEPSE adapter."
+    """
+    Get market-wide news and notices from NEPSE.
+    Includes exchange messages and regulatory notices.
+    """
+    if not NEPSE_SCRAPER_AVAILABLE:
+        return "Error: nepse_scraper not installed. Run: pip install nepse-scraper"
+
+    items = []
+    try:
+        scraper = NepseScraper(verify_ssl=False)
+        # Get exchange messages from the disclosure endpoint
+        endpoint = scraper.endpoints.get("disclosure")
+        if endpoint:
+            resp = scraper.session.get(endpoint["api"])
+            data = resp.json()
+            items = data.get("exchangeMessages", [])
+    except Exception:
+        pass
+
+    if not items:
+        return "# NEPSE market news\n\nNo market-wide news available.\n"
+
+    if curr_date:
+        ref_dt = pd.to_datetime(curr_date)
+        cutoff = ref_dt - pd.Timedelta(days=look_back_days)
+    else:
+        cutoff = pd.Timestamp.today() - pd.Timedelta(days=look_back_days)
+
+    filtered = []
+    for d in items:
+        added = None
+        for field in ("modifiedDate", "addedDate", "approvedDate"):
+            val = d.get(field)
+            if val:
+                added = val
+                break
+        if added:
+            dt = pd.to_datetime(added.split("T")[0], errors="coerce")
+            if not pd.isna(dt) and dt >= cutoff:
+                filtered.append(d)
+
+    filtered = filtered[:limit]
+
+    if not filtered:
+        return "# NEPSE market news\n\nNo recent market-wide news.\n"
+
+    lines = ["# NEPSE market news", f"Last {look_back_days} days", ""]
+    for d in filtered:
+        body = d.get("messageBody", "")
+        date = d.get("modifiedDate", "").split("T")[0] if d.get("modifiedDate") else ""
+        lines.append(f"**Date:** {date}")
+        if body:
+            import re
+            clean = re.sub(r"<[^>]+>", "", body).strip()
+            if clean:
+                lines.append(f"> {clean[:1000]}")
+        lines.append("")
+    return "\n".join(lines)
 
 
 # --- Outcome tracking (memory/reflection Phase B) ---

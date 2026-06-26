@@ -6,9 +6,9 @@ What works, what doesn't, and what to expect when using `--vendor nepse`. See [N
 
 ## Broken
 
-**Fundamentals analyst** — The CLI sets `fundamental_data: "nepse"`, but no NEPSE vendor exists for `get_fundamentals`, `get_balance_sheet`, `get_cashflow`, or `get_income_statement`. Tool calls raise a `ValueError`. The analyst may report failure or improvise without real financial statements.
+**Fundamentals analyst (historical)** — Now resolved. `get_fundamentals` returns company profile + key stats from the NEPSE API (sector, market cap, listed shares, 52w range, etc.). `get_balance_sheet`, `get_cashflow`, and `get_income_statement` return matching disclosures from `nepse_scraper.get_company_disclosures()` when available.
 
-Neither yfinance nor Alpha Vantage covers NEPSE fundamentals, so this analyst is degraded for NEPSE regardless of vendor.
+Coverage depends on what the company has filed through NEPSE's disclosure system — no structured financial statements like yfinance's 10-K, but real company-submitted documents.
 
 ---
 
@@ -16,10 +16,11 @@ Neither yfinance nor Alpha Vantage covers NEPSE fundamentals, so this analyst is
 
 | Feature                | Behavior                                     |
 | ---------------------- | -------------------------------------------- |
-| News / global news     | Static “not available” stub                  |
-| Sentiment — StockTwits | US cashtags; NEPSE symbols rarely have posts |
-| Sentiment — Reddit     | US subreddits only; no NEPSE coverage        |
-| FRED macro             | US indicators (Fed, CPI, etc.), not Nepal    |
+| News / global news     | Real data from NEPSE disclosures + exchange messages |
+| Sentiment — StockTwits | US cashtags; NEPSE symbols rarely have posts         |
+| Sentiment — Reddit     | US subreddits only; no NEPSE coverage                |
+| FRED macro             | US indicators (Fed, CPI, etc.), not Nepal            |
+| NRB macro              | NEPSE market trend table; NRB rates attempt scrape   |
 | Polymarket             | Global/US events, not NEPSE-specific         |
 
 Agents still run using price, sector, and technical data, but news and social layers add little.
@@ -51,4 +52,4 @@ Agents still run using price, sector, and technical data, but news and social la
 
 ## Practical takeaway
 
-NEPSE mode is best treated as a **technical + multi-agent decision tool**, not a full fundamental/news/social stack. The main config bug is `fundamental_data: "nepse"` — that vendor does not exist yet.
+NEPSE mode is best treated as a **technical + disclosure-based decision tool**, not a full fundamental/news/social stack. The `fundamental_data: "nepse"` gap has been closed: fundamentals now return company profile and disclosure-matched entries, though structured 10-K-style statements are not available.
