@@ -4,7 +4,6 @@ import time
 from collections import deque
 from functools import wraps
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich import box
@@ -1297,8 +1296,8 @@ def run_analysis(checkpoint: bool | None = None, ticker: str = None, date: str =
 
 @app.command("analyze")
 def analyze(
-    ticker: Optional[str] = typer.Option(None, "--ticker", "-t", help="Ticker symbol to analyze (e.g., CYCL, NABIL, NVDA)"),
-    date: Optional[str] = typer.Option(None, "--date", "-d", help="Analysis date in YYYY-MM-DD format"),
+    ticker: str | None = typer.Option(None, "--ticker", "-t", help="Ticker symbol to analyze (e.g., CYCL, NABIL, NVDA)"),
+    date: str | None = typer.Option(None, "--date", "-d", help="Analysis date in YYYY-MM-DD format"),
     checkpoint: bool | None = typer.Option(
         None,
         "--checkpoint/--no-checkpoint",

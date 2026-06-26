@@ -249,10 +249,7 @@ class TradingAgentsGraph:
         """
         if holding_days is None:
             config = getattr(self, "config", None) if self is not None else None
-            if config:
-                holding_days = config.get("outcome_holding_days", 5)
-            else:
-                holding_days = 5
+            holding_days = config.get("outcome_holding_days", 5) if config else 5
 
         config = getattr(self, "config", None) if self is not None else None
         if config and TradingAgentsGraph._is_nepse_vendor(config):
